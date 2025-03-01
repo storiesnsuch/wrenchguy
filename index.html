@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wrench Man</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #333;
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+    }
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      margin: 20px auto;
+      border: 4px solid #222;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+    #city-background {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+    }
+    #score-display {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 28px;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      font-weight: bold;
+      z-index: 100;
+    }
+    #level-display {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 28px;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      font-weight: bold;
+      z-index: 100;
+    }
+    #game-over {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      display: none;
+      z-index: 200;
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+      border: 3px solid #FFD700;
+    }
+    #restart-button {
+      padding: 15px 25px;
+      font-size: 24px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 25px;
+      font-weight: bold;
+      box-shadow: 0 5px #388E3C;
+      transition: all 0.2s;
+    }
+    #restart-button:hover {
+      background-color: #45a049;
+      transform: translateY(2px);
+      box-shadow: 0 3px #388E3C;
+    }
+    .character {
+      position: absolute;
+      width: 60px;
+      height: 120px;
+      z-index: 50;
+    }
+    .wrench {
+      position: absolute;
+      width: 90px;
+      height: 45px;
+      z-index: 51;
+      transition: transform 0.4s ease-out;
+    }
+    .pedestrian {
+      position: absolute;
+      width: 40px;
+      height: 80px;
+      bottom: 200px;
+      z-index: 40;
+    }
+    .hit-effect {
+      position: absolute;
+      font-size: 36px;
+      color: #FFEB3B;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      animation: hitEffect 0.8s forwards;
+    }
+    @keyframes hitEffect {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(0, -80px) scale(1.5); opacity: 0; }
+    }
+    #instructions {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 20px;
+      color: #FFF;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+    }
+    .stars {
+      position: absolute;
+      opacity: 0;
+      z-index: 30;
+      animation: stars 0.5s ease-out;
+    }
+    @keyframes stars {
+      0% { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    /* Debug marker CSS (optional for debugging roof heights) */
+    .debug-roof-marker {
+      position: absolute;
+      background-color: rgba(255, 0, 0, 0.5);
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div id="instructions">
+    <p>Use arrow keys to move, UP to jump, SPACE to swing your mighty wrench!</p>
+  </div>
+  <div id="game-container">
+    <svg id="city-background" viewBox="0 0 800 600" preserveAspectRatio="none">
+      <!-- Sky gradient -->
+      <defs>
+        <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#1a237e" />
+          <stop offset="40%" stop-color="#3949ab" />
+          <stop offset="70%" stop-color="#5c6bc0" />
+          <stop offset="100%" stop-color="#7986cb" />
+        </linearGradient>
+        <!-- Window pattern -->
+        <pattern id="windowPattern" patternUnits="userSpaceOnUse" width="40" height="40" patternTransform="scale(0.5)">
+          <rect width="30" height="30" x="5" y="5" fill="#FFEB3B" opacity="0.8" />
+        </pattern>
+        <!-- Moon glow -->
+        <radialGradient id="moonGlow" cx="80%" cy="20%" r="20%" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.7" />
+          <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <!-- Sky -->
+      <rect width="800" height="600" fill="url(#skyGradient)" />
+      <!-- Moon glow -->
+      <circle cx="680" cy="100" r="120" fill="url(#moonGlow)" />
+      <!-- Moon -->
+      <circle cx="680" cy="100" r="50" fill="#FFFFFF" />
+      <circle cx="660" cy="80" r="12" fill="#E0E0E0" />
+      <circle cx="700" cy="120" r="15" fill="#E0E0E0" />
+      <circle cx="670" cy="130" r="10" fill="#E0E0E0" />
+      <!-- Stars -->
+      <circle cx="100" cy="50" r="2" fill="#FFFFFF" />
+      <circle cx="200" cy="80" r="1.5" fill="#FFFFFF" />
+      <circle cx="300" cy="30" r="2" fill="#FFFFFF" />
+      <circle cx="400" cy="60" r="1" fill="#FFFFFF" />
+      <circle cx="500" cy="40" r="1.5" fill="#FFFFFF" />
+      <circle cx="150" cy="120" r="1" fill="#FFFFFF" />
+      <circle cx="250" cy="150" r="2" fill="#FFFFFF" />
+      <circle cx="350" cy="100" r="1" fill="#FFFFFF" />
+      <circle cx="450" cy="130" r="1.5" fill="#FFFFFF" />
+      <circle cx="550" cy="70" r="1" fill="#FFFFFF" />
+      <!-- Buildings in the background -->
+      <rect x="50" y="150" width="100" height="450" fill="#263238" />
+      <rect x="60" y="170" width="80" height="430" fill="#37474F" />
+      <rect x="70" y="200" width="60" height="30" fill="url(#windowPattern)" />
+      <rect x="70" y="250" width="60" height="30" fill="url(#windowPattern)" />
+      <rect x="70" y="300" width="60" height="30" fill="url(#windowPattern)" />
+      <rect x="70" y="350" width="60" height="30" fill="url(#windowPattern)" />
+      <rect x="70" y="400" width="60" height="30" fill="url(#windowPattern)" />
+      <rect x="70" y="450" width="60" height="30" fill="url(#windowPattern)" />
+      <rect x="180" y="200" width="140" height="400" fill="#263238" />
+      <rect x="190" y="220" width="120" height="380" fill="#37474F" />
+      <rect x="200" y="240" width="100" height="40" fill="url(#windowPattern)" />
+      <rect x="200" y="300" width="100" height="40" fill="url(#windowPattern)" />
+      <rect x="200" y="360" width="100" height="40" fill="url(#windowPattern)" />
+      <rect x="200" y="420" width="100" height="40" fill="url(#windowPattern)" />
+      <rect x="200" y="480" width="100" height="40" fill="url(#windowPattern)" />
+      <rect x="350" y="100" width="120" height="500" fill="#263238" />
+      <rect x="360" y="120" width="100" height="480" fill="#37474F" />
+      <rect x="370" y="140" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="190" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="240" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="290" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="340" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="390" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="440" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="370" y="490" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="500" y="150" width="170" height="450" fill="#263238" />
+      <rect x="510" y="170" width="150" height="430" fill="#37474F" />
+      <rect x="520" y="190" width="130" height="40" fill="url(#windowPattern)" />
+      <rect x="520" y="250" width="130" height="40" fill="url(#windowPattern)" />
+      <rect x="520" y="310" width="130" height="40" fill="url(#windowPattern)" />
+      <rect x="520" y="370" width="130" height="40" fill="url(#windowPattern)" />
+      <rect x="520" y="430" width="130" height="40" fill="url(#windowPattern)" />
+      <rect x="520" y="490" width="130" height="40" fill="url(#windowPattern)" />
+      <rect x="700" y="200" width="120" height="400" fill="#263238" />
+      <rect x="710" y="220" width="100" height="380" fill="#37474F" />
+      <rect x="720" y="240" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="720" y="290" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="720" y="340" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="720" y="390" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="720" y="440" width="80" height="30" fill="url(#windowPattern)" />
+      <rect x="720" y="490" width="80" height="30" fill="url(#windowPattern)" />
+      <!-- Street -->
+      <rect x="0" y="400" width="800" height="200" fill="#37474F" />
+      <!-- Road markings -->
+      <rect x="50" y="499" width="80" height="3" fill="#FDD835" />
+      <rect x="200" y="499" width="80" height="3" fill="#FDD835" />
+      <rect x="350" y="499" width="80" height="3" fill="#FDD835" />
+      <rect x="500" y="499" width="80" height="3" fill="#FDD835" />
+      <rect x="650" y="499" width="80" height="3" fill="#FDD835" />
+      <!-- Curb/sidewalk -->
+      <rect x="0" y="400" width="800" height="10" fill="#90A4AE" />
+    </svg>
+    
+    <div id="score-display">Score: 0</div>
+    <div id="level-display">Level: 1</div>
+    <div id="game-over">
+      <h2>GAME OVER</h2>
+      <p>Your final score: <span id="final-score">0</span></p>
+      <button id="restart-button">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    // Game variables
+    let score = 0;
+    let level = 1;
+    let gameActive = true;
+    const container = document.getElementById('game-container');
+    const scoreDisplay = document.getElementById('score-display');
+    const levelDisplay = document.getElementById('level-display');
+    const gameOverDisplay = document.getElementById('game-over');
+    const finalScoreDisplay = document.getElementById('final-score');
+    const restartButton = document.getElementById('restart-button');
+
+    // Key state
+    const keys = {};
+
+    // Pedestrian management
+    let pedestrians = [];
+    let pedestrianSpeed = 2;
+    let spawnRate = 2000; // milliseconds
+    let lastSpawnTime = 0;
+
+    // === Jump mechanics variables ===
+    // Updated physics constants for proper building jumps:
+    const gravity = 1.0;        // Increased from 0.5 for more natural jumps
+    const jumpStrength = 25;    // Increased from 15 to reach higher platforms
+    let isJumping = false;
+    let jumpVelocity = 0;
+    let onRoof = false;
+    let currentPlatform = null;
+
+    // Define roof/building platforms with corrected y-values (distance from bottom)
+    // (SVG y-values: 150 → 600-150=450, 200 → 600-200=400, 100 → 600-100=500)
+    const platforms = [
+      { x: 50, width: 100, y: 450 },    // leftmost building
+      { x: 180, width: 140, y: 400 },   // second building
+      { x: 350, width: 120, y: 500 },   // middle building (tallest)
+      { x: 500, width: 170, y: 450 },   // fourth building
+      { x: 700, width: 120, y: 400 }    // rightmost building
+    ];
+
+    // === Define wrenchMan without the element first ===
+    const wrenchMan = {
+      x: 400,
+      y: 200,
+      speed: 5,
+      width: 60,
+      height: 120,
+      direction: 'right'
+    };
+
+    // Now create the element and assign it to wrenchMan.element
+    wrenchMan.element = createWrenchMan();
+
+    // Create Wrench Man element
+    function createWrenchMan() {
+      const element = document.createElement('div');
+      element.className = 'character';
+      element.style.bottom = '200px';
+      element.style.left = '400px';
+      const svgContent = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 120" width="60" height="120">
+          <!-- Cape -->
+          <path d="M30 20 Q45 30 40 70 L30 60 L20 70 Q15 30 30 20" fill="#c62828" />
+          <!-- Body -->
+          <rect x="22" y="30" width="16" height="35" fill="#1976d2" />
+          <!-- Belt -->
+          <rect x="22" y="65" width="16" height="5" fill="#ffd600" />
+          <!-- Legs -->
+          <rect x="22" y="70" width="7" height="30" fill="#1565c0" />
+          <rect x="31" y="70" width="7" height="30" fill="#1565c0" />
+          <!-- Boots -->
+          <path d="M22 100 L22 105 L29 105 L29 100 Z" fill="#263238" />
+          <path d="M31 100 L31 105 L38 105 L38 100 Z" fill="#263238" />
+          <!-- Arms -->
+          <rect x="12" y="35" width="10" height="25" fill="#1976d2" />
+          <rect x="38" y="35" width="10" height="25" fill="#1976d2" />
+          <!-- Gloves -->
+          <rect x="12" y="60" width="10" height="5" fill="#ffeb3b" />
+          <rect x="38" y="60" width="10" height="5" fill="#ffeb3b" />
+          <!-- Head -->
+          <circle cx="30" cy="20" r="12" fill="#ffb74d" />
+          <!-- Mask -->
+          <path d="M20 20 Q30 10 40 20 Q40 25 30 30 Q20 25 20 20" fill="#1976d2" />
+          <!-- Eyes -->
+          <ellipse cx="25" cy="20" rx="3" ry="4" fill="white" />
+          <ellipse cx="35" cy="20" rx="3" ry="4" fill="white" />
+          <circle cx="25" cy="20" r="1.5" fill="black" />
+          <circle cx="35" cy="20" r="1.5" fill="black" />
+          <!-- Emblem -->
+          <circle cx="30" cy="45" r="6" fill="#ffeb3b" />
+          <text x="30" y="48" font-family="Arial" font-size="10" text-anchor="middle" fill="#1976d2" font-weight="bold">W</text>
+        </svg>`;
+      element.innerHTML = svgContent;
+      container.appendChild(element);
+      return element;
+    }
+
+    // Create Wrench element
+    function createWrench() {
+      const element = document.createElement('div');
+      element.className = 'wrench';
+      const svgContent = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 45" width="90" height="45">
+          <!-- Wrench Handle -->
+          <rect x="0" y="15" width="65" height="15" rx="5" ry="5" fill="#90a4ae" />
+          <!-- Wrench Head -->
+          <path d="M90 5 L55 5 L55 40 L90 40 Q80 22.5 90 5" fill="#78909c" />
+          <!-- Wrench Opening -->
+          <ellipse cx="72.5" cy="22.5" rx="8" ry="10" fill="#546e7a" />
+          <!-- Highlights -->
+          <rect x="0" y="15" width="65" height="3" fill="#cfd8dc" />
+          <rect x="0" y="27" width="65" height="3" fill="#546e7a" />
+          <path d="M90 5 L55 5 L55 8 L87 8 Q88 6.5 90 5" fill="#cfd8dc" />
+          <path d="M90 40 L55 40 L55 37 L87 37 Q88 38.5 90 40" fill="#546e7a" />
+        </svg>`;
+      element.innerHTML = svgContent;
+      container.appendChild(element);
+      return element;
+    }
+
+    const wrench = {
+      element: createWrench(),
+      isSwinging: false,
+      swingStartTime: 0
+    };
+
+    // === Initialize game with updated key controls for jump ===
+    function init() {
+      window.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+        if (e.key === ' ' && !wrench.isSwinging && gameActive) {
+          swingWrench();
+        }
+        // Jump control: handle UP arrow
+        if (e.key === 'ArrowUp' && gameActive) {
+          if (!isJumping && !onRoof) {
+            isJumping = true;
+            jumpVelocity = jumpStrength;
+          } else if (onRoof) {
+            isJumping = true;
+            jumpVelocity = jumpStrength;
+          }
+        }
+        e.preventDefault();
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+      });
+
+      restartButton.addEventListener('click', restartGame);
+
+      // Uncomment the following line to debug roof platforms:
+      // debugRoofPlatforms();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // === Game loop with jumping mechanics integrated ===
+    function gameLoop(timestamp) {
+      if (!gameActive) return;
+
+      // Movement controls for Wrench Man
+      if (keys['ArrowLeft'] && wrenchMan.x > 0) {
+        wrenchMan.x -= wrenchMan.speed;
+        wrenchMan.direction = 'left';
+      }
+      if (keys['ArrowRight'] && wrenchMan.x < container.offsetWidth - wrenchMan.width) {
+        wrenchMan.x += wrenchMan.speed;
+        wrenchMan.direction = 'right';
+      }
+
+      // Update horizontal position and orientation
+      wrenchMan.element.style.left = wrenchMan.x + 'px';
+      wrenchMan.element.style.transform = wrenchMan.direction === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
+
+      // Handle jumping physics
+      handleJump();
+      checkRoofEdge();
+      updateVisuals();
+
+      // Update wrench position relative to Wrench Man
+      updateWrenchPosition();
+
+      // Pedestrian spawning
+      if (!lastSpawnTime) lastSpawnTime = timestamp;
+      if (timestamp - lastSpawnTime > spawnRate) {
+        spawnPedestrian();
+        if (level >= 7 && level < 10) {
+          setTimeout(() => { 
+            if (gameActive) spawnPedestrian(); 
+          }, 800);
+        } else if (level >= 10) {
+          const spawnDelay = Math.max(800 - (level - 10) * 50, 500);
+          setTimeout(() => { 
+            if (gameActive) spawnPedestrian(); 
+          }, spawnDelay);
+          if (level >= 12) {
+            setTimeout(() => { 
+              if (gameActive) spawnPedestrian(); 
+            }, spawnDelay * 2);
+          }
+        }
+        lastSpawnTime = timestamp;
+      }
+      
+      // Update pedestrians positions and behavior
+      updatePedestrians();
+
+      // Check for hits if wrench is swinging
+      if (wrench.isSwinging) {
+        checkHits();
+      }
+
+      // Level up if score threshold is reached
+      if (score >= level * 10) {
+        levelUp();
+      }
+
+      // Update score and level displays
+      scoreDisplay.textContent = `Score: ${score}`;
+      levelDisplay.textContent = `Level: ${level}`;
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // === Modified handleJump function ===
+    function handleJump() {
+  if (isJumping) {
+    // Apply gravity to the jump velocity
+    jumpVelocity -= gravity;
+    // Update vertical position by adding jumpVelocity (so positive values move up)
+    wrenchMan.y += jumpVelocity;
+    
+    // Check if character hits the ground (sidewalk at 200px)
+    if (wrenchMan.y <= 200 && jumpVelocity < 0) {
+      wrenchMan.y = 200;
+      isJumping = false;
+      jumpVelocity = 0;
+      onRoof = false;
+      currentPlatform = null;
+      
+      // Landing effect when hitting the ground
+      const landEffect = document.createElement('div');
+      landEffect.className = 'stars';
+      landEffect.style.left = (wrenchMan.x + 20) + 'px';
+      landEffect.style.bottom = '195px';
+      landEffect.style.width = '20px';
+      landEffect.style.height = '10px';
+      landEffect.innerHTML = `<svg viewBox="0 0 20 10" width="20" height="10">
+                                <rect width="20" height="3" fill="#aaaaaa" opacity="0.7" />
+                              </svg>`;
+      container.appendChild(landEffect);
+      setTimeout(() => {
+        if (landEffect.parentNode === container) {
+          container.removeChild(landEffect);
+        }
+      }, 200);
+    }
+    
+    // Check if character landed on a rooftop
+    checkRoofCollision();
+  }
+  
+  // Update character's position on screen
+  wrenchMan.element.style.bottom = wrenchMan.y + 'px';
+}
+
+    // === Improved roof collision detection ===
+    function checkRoofCollision() {
+      if (!isJumping || jumpVelocity > 0) return; // Only check when falling
+      
+      const centerX = wrenchMan.x + (wrenchMan.width / 2);
+      
+      for (const platform of platforms) {
+        // Check if character is above the platform horizontally
+        if (centerX > platform.x && centerX < platform.x + platform.width) {
+          // Check if character just passed through the platform vertically (within ±15px)
+          if (wrenchMan.y >= platform.y - 15 && wrenchMan.y <= platform.y + 15) {
+            // Land on the platform
+            wrenchMan.y = platform.y;
+            isJumping = false;
+            jumpVelocity = 0;
+            onRoof = true;
+            currentPlatform = platform;
+            
+            // Add landing effect on roof
+            const landEffect = document.createElement('div');
+            landEffect.className = 'stars';
+            landEffect.style.left = (wrenchMan.x + 20) + 'px';
+            landEffect.style.bottom = (platform.y - 5) + 'px';
+            landEffect.style.width = '20px';
+            landEffect.style.height = '10px';
+            landEffect.innerHTML = `
+              <svg viewBox="0 0 20 10" width="20" height="10">
+                <rect width="20" height="3" fill="#aaaaaa" opacity="0.7" />
+              </svg>
+            `;
+            container.appendChild(landEffect);
+            setTimeout(() => {
+              if (landEffect.parentNode === container) {
+                container.removeChild(landEffect);
+              }
+            }, 200);
+            
+            break;
+          }
+        }
+      }
+    }
+
+    // === Better edge detection for roofs ===
+    function checkRoofEdge() {
+      if (onRoof && !isJumping) {
+        const centerX = wrenchMan.x + (wrenchMan.width / 2);
+        
+        // Check if player has walked off the current platform
+        if (centerX < currentPlatform.x || centerX > currentPlatform.x + currentPlatform.width) {
+          isJumping = true;
+          jumpVelocity = 0; // Start falling immediately
+          onRoof = false;
+          
+          // Add falling dust effect
+          const fallEffect = document.createElement('div');
+          fallEffect.className = 'stars';
+          fallEffect.style.left = (wrenchMan.x + 20) + 'px';
+          fallEffect.style.bottom = (wrenchMan.y - 10) + 'px';
+          fallEffect.style.width = '20px';
+          fallEffect.style.height = '10px';
+          fallEffect.innerHTML = `
+            <svg viewBox="0 0 20 10" width="20" height="10">
+              <circle cx="5" cy="5" r="2" fill="#dddddd" opacity="0.8" />
+              <circle cx="10" cy="5" r="2" fill="#dddddd" opacity="0.8" />
+              <circle cx="15" cy="5" r="2" fill="#dddddd" opacity="0.8" />
+            </svg>
+          `;
+          container.appendChild(fallEffect);
+          setTimeout(() => {
+            if (fallEffect.parentNode === container) {
+              container.removeChild(fallEffect);
+            }
+          }, 300);
+        }
+      }
+    }
+
+    // === Improved visual cues for roof state ===
+    function updateVisuals() {
+      if (onRoof) {
+        // Add shadow and slight glow when on roof
+        wrenchMan.element.style.filter = "drop-shadow(0px 5px 3px rgba(0,0,0,0.5))";
+        wrenchMan.element.style.transition = "filter 0.2s";
+      } else {
+        wrenchMan.element.style.filter = "none";
+      }
+    }
+
+    // === Update wrench position to account for vertical movement ===
+    function updateWrenchPosition() {
+      if (wrenchMan.direction === 'left') {
+        wrench.element.style.left = (wrenchMan.x - 5) + 'px';
+        wrench.element.style.bottom = (wrenchMan.y + 50) + 'px';
+        wrench.element.style.transformOrigin = "left center";
+        if (!wrench.isSwinging) {
+          wrench.element.style.transform = "scaleX(-1)";
+        }
+      } else {
+        wrench.element.style.left = (wrenchMan.x + 35) + 'px';
+        wrench.element.style.bottom = (wrenchMan.y + 50) + 'px';
+        wrench.element.style.transformOrigin = "left center";
+        if (!wrench.isSwinging) {
+          wrench.element.style.transform = "none";
+        }
+      }
+    }
+
+    // === Swing wrench functions (updated for vertical offset) ===
+    function swingWrench() {
+      if (wrench.isSwinging) return;
+      wrench.isSwinging = true;
+      wrench.swingStartTime = Date.now();
+      if (wrenchMan.direction === 'left') {
+        wrench.element.style.transformOrigin = "left center";
+        wrench.element.style.transform = "scaleX(-1) rotate(90deg)";
+      } else {
+        wrench.element.style.transformOrigin = "left center";
+        wrench.element.style.transform = "rotate(90deg)";
+      }
+      addSwingEffect();
+      playSwingSound();
+      setTimeout(() => {
+        wrench.isSwinging = false;
+        if (wrenchMan.direction === 'left') {
+          wrench.element.style.transform = "scaleX(-1)";
+        } else {
+          wrench.element.style.transform = "none";
+        }
+      }, 300);
+    }
+
+    function addSwingEffect() {
+      const swingTrail = document.createElement('div');
+      swingTrail.className = 'stars';
+      if (wrenchMan.direction === 'left') {
+        swingTrail.style.left = (wrenchMan.x - 25) + 'px';
+        swingTrail.style.bottom = (wrenchMan.y + 20) + 'px';
+      } else {
+        swingTrail.style.left = (wrenchMan.x + 40) + 'px';
+        swingTrail.style.bottom = (wrenchMan.y + 20) + 'px';
+      }
+      const trailSize = 80;
+      swingTrail.style.width = `${trailSize}px`;
+      swingTrail.style.height = `${trailSize}px`;
+      swingTrail.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${trailSize} ${trailSize}" width="${trailSize}" height="${trailSize}">
+          <path d="M${trailSize/2},0 
+                    L${trailSize/2 + 5},${trailSize/3} 
+                    L${trailSize},${trailSize/2} 
+                    L${trailSize/2 + 5},${trailSize*2/3} 
+                    L${trailSize/2},${trailSize} 
+                    L${trailSize/2 - 5},${trailSize*2/3} 
+                    L0,${trailSize/2} 
+                    L${trailSize/2 - 5},${trailSize/3} Z" 
+                fill="#FFD700" opacity="0.7" />
+        </svg>`;
+      container.appendChild(swingTrail);
+      setTimeout(() => {
+        if (swingTrail.parentNode === container) {
+          container.removeChild(swingTrail);
+        }
+      }, 300);
+    }
+
+    function playSwingSound() {
+      const swooshSound = new Audio('data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAMAAAGkABVVVVVVVVVVVVVVVVVVVWqqqqqqqqqqqqqqqqqqqrV1dXV1dXV1dXV1dXV1dXq6urq6urq6urq6urq6ur///////////////////////8AAAA5TEFNRTMuOTlyBK8AAAAALDQAADUgJALBTQABzAAABpByDVzwAAAAAAAAAAAAAAAAAAAA//vQxAAED9AHJMAAAABbwCHmPAAAEp6ZZ7/MMaj5MAIMkY+ZAQYhEAi7ICDZEEXCAIAgCAQ15zjnOtcc610hwGKfAIAgCAIHQcOB0HQdAIHQcOgEDhwoIwUEZQSHDgcOHCgl4sICAgICAgJxwgICovwQBC74sICAgsMxwgICAgv8EAQu8ICAgICCHBQQEBAQEBy/wQBC/4ICAgICcIQEBAQEBDg/wQBC/8ICAgICHBQQEBAQEOfn+CAIflAQEBAQ4QgICAgICCj+CAIf5AQEBAQ4ICAgICAgqKCgICCgoKCgoKCgoKCgoKCg//sQxMoAEjWxU/mEABKwPS8zMJADoqCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoA==');
+      swooshSound.volume = 0.5;
+      swooshSound.play();
+    }
+
+    function checkHits() {
+      const swingTime = Date.now() - wrench.swingStartTime;
+      if (swingTime < 50 || swingTime > 250) return;
+      const wrenchRect = wrench.element.getBoundingClientRect();
+      const wrenchHitbox = {
+        left: wrenchRect.left,
+        right: wrenchRect.right,
+        top: wrenchRect.top,
+        bottom: wrenchRect.bottom
+      };
+      if (wrenchMan.direction === 'left') {
+        wrenchHitbox.left -= 20;
+      } else {
+        wrenchHitbox.right += 20;
+      }
+      for (let i = pedestrians.length - 1; i >= 0; i--) {
+        const ped = pedestrians[i];
+        if (ped.dataset.hit === 'false') {
+          const pedRect = ped.getBoundingClientRect();
+          if (!(pedRect.right < wrenchHitbox.left || 
+                pedRect.left > wrenchHitbox.right || 
+                pedRect.bottom < wrenchHitbox.top || 
+                pedRect.top > wrenchHitbox.bottom)) {
+            ped.dataset.hit = 'true';
+            container.removeChild(ped);
+            pedestrians.splice(i, 1);
+            score++;
+            showHitEffect(parseFloat(ped.style.left), parseFloat(ped.style.bottom));
+          }
+        }
+      }
+    }
+
+    function showHitEffect(x, y) {
+      const hitEffect = document.createElement('div');
+      hitEffect.className = 'hit-effect';
+      hitEffect.style.left = x + 'px';
+      hitEffect.style.bottom = (y + 40) + 'px';
+      const hitMessages = ['Hit!', 'Pow!', 'Bam!', 'Wham!', 'Smack!', '+1'];
+      hitEffect.textContent = hitMessages[Math.floor(Math.random() * hitMessages.length)];
+      const colors = ['#FFEB3B', '#FF5722', '#FFC107', '#F44336', '#8BC34A'];
+      hitEffect.style.color = colors[Math.floor(Math.random() * colors.length)];
+      container.appendChild(hitEffect);
+      const starBurst = document.createElement('div');
+      starBurst.className = 'stars';
+      starBurst.style.left = x + 'px';
+      starBurst.style.bottom = y + 'px';
+      starBurst.style.width = '60px';
+      starBurst.style.height = '60px';
+      starBurst.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="60" height="60">
+          <polygon points="50,0 65,35 100,35 70,60 80,100 50,75 20,100 30,60 0,35 35,35" fill="#FFEB3B" />
+          <circle cx="50" cy="50" r="10" fill="#FF9800" />
+        </svg>
+      `;
+      container.appendChild(starBurst);
+      const pointsDisplay = document.createElement('div');
+      pointsDisplay.className = 'hit-effect';
+      pointsDisplay.style.left = (x + 20) + 'px';
+      pointsDisplay.style.bottom = (y + 70) + 'px';
+      pointsDisplay.textContent = '+' + level;
+      pointsDisplay.style.color = '#4CAF50';
+      pointsDisplay.style.fontSize = '24px';
+      container.appendChild(pointsDisplay);
+      setTimeout(() => {
+        if (hitEffect.parentNode === container) container.removeChild(hitEffect);
+        if (starBurst.parentNode === container) container.removeChild(starBurst);
+        if (pointsDisplay.parentNode === container) container.removeChild(pointsDisplay);
+      }, 800);
+      container.style.transform = 'translate(3px, 3px)';
+      setTimeout(() => { container.style.transform = 'translate(-3px, -3px)'; }, 50);
+      setTimeout(() => { container.style.transform = 'translate(2px, 2px)'; }, 100);
+      setTimeout(() => { container.style.transform = 'translate(-2px, -2px)'; }, 150);
+      setTimeout(() => { container.style.transform = 'translate(0, 0)'; }, 200);
+    }
+
+    function spawnPedestrian() {
+      const pedestrian = document.createElement('div');
+      pedestrian.className = 'pedestrian';
+      const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
+      pedestrian.dataset.spawnSide = spawnSide;
+      if (spawnSide === 'left') {
+        pedestrian.style.left = '-50px';
+        pedestrian.dataset.direction = '1';
+      } else {
+        pedestrian.style.left = container.offsetWidth + 'px';
+        pedestrian.dataset.direction = '-1';
+      }
+      pedestrian.style.bottom = (200 + Math.random() * 20 - 10) + 'px';
+      
+      if (level >= 4 && level < 9) {
+        const dodgeProbability = Math.min(0.1 + (level - 4) * 0.05, 0.3);
+        pedestrian.dataset.behavior = Math.random() < dodgeProbability ? 'dodger' : 'normal';
+      } else if (level >= 9) {
+        const specialProbability = Math.min(0.2 + (level - 9) * 0.03, 0.4);
+        const rand = Math.random();
+        if (rand < specialProbability * 0.6) {
+          pedestrian.dataset.behavior = 'dodger';
+        } else if (rand < specialProbability) {
+          pedestrian.dataset.behavior = 'zigzag';
+          pedestrian.dataset.zigTimer = '0';
+        } else {
+          pedestrian.dataset.behavior = 'normal';
+        }
+      } else {
+        pedestrian.dataset.behavior = 'normal';
+      }
+      
+      const variability = Math.min(0.1 + (level * 0.025), 0.4);
+      pedestrian.dataset.speedMod = (1 - variability + Math.random() * variability * 2).toFixed(2);
+      
+      const colors = ['#ffcc80', '#ef9a9a', '#a5d6a7', '#90caf9', '#ce93d8', '#fff59d', '#bcaaa4'];
+      const clothingColors = ['#8d6e63', '#5d4037', '#37474f', '#1565c0', '#689f38', '#d32f2f', '#7b1fa2'];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const clothing = clothingColors[Math.floor(Math.random() * clothingColors.length)];
+      pedestrian.dataset.hit = 'false';
+      pedestrian.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 80" width="40" height="80">
+          <circle cx="20" cy="15" r="10" fill="${color}" />
+          ${Math.random() < 0.3 ? '<rect x="12" y="5" width="16" height="5" fill="#333" />' : ''}
+          ${Math.random() < 0.4 ? '<ellipse cx="20" cy="8" rx="12" ry="4" fill="#333" />' : ''}
+          <rect x="10" y="30" width="20" height="40" fill="${clothing}" />
+          <rect x="15" y="70" width="10" height="10" fill="#6d4c41" />
+        </svg>
+      `;
+      container.appendChild(pedestrian);
+      pedestrians.push(pedestrian);
+    }
+
+    function updatePedestrians() {
+      for (let i = pedestrians.length - 1; i >= 0; i--) {
+        const ped = pedestrians[i];
+        let pedX = parseFloat(ped.style.left);
+        let pedY = parseFloat(ped.style.bottom);
+        let direction = parseInt(ped.dataset.direction, 10);
+        const speedMod = parseFloat(ped.dataset.speedMod);
+        let currentSpeed = pedestrianSpeed * speedMod;
+        
+        if (!ped.dataset.lastDirectionChange) {
+          ped.dataset.lastDirectionChange = '0';
+        }
+        const lastDirectionChangeTime = parseInt(ped.dataset.lastDirectionChange, 10);
+        const currentTime = Date.now();
+        const canChangeDirection = currentTime - lastDirectionChangeTime > 500;
+        
+        switch (ped.dataset.behavior) {
+          case 'dodger':
+            const pedCenter = pedX + 20;
+            const playerCenter = wrenchMan.x + (wrenchMan.width / 2);
+            const distanceToPlayer = Math.abs(pedCenter - playerCenter);
+            if (distanceToPlayer < 150) {
+              if (canChangeDirection) {
+                ped.dataset.lastDirectionChange = currentTime.toString();
+                direction = pedCenter < playerCenter ? -1 : 1;
+                currentSpeed *= 1.2;
+              }
+              if (pedX < -30 || pedX > container.offsetWidth + 30) {
+                container.removeChild(ped);
+                pedestrians.splice(i, 1);
+                continue;
+              }
+            } else {
+              direction = ped.dataset.spawnSide === 'left' ? 1 : -1;
+            }
+            break;
+          case 'zigzag':
+            let zigTimer = parseInt(ped.dataset.zigTimer, 10);
+            zigTimer += 1;
+            ped.dataset.zigTimer = zigTimer.toString();
+            if (zigTimer % 30 === 0) {
+              direction *= -1;
+            }
+            const verticalOffset = Math.sin(zigTimer / 10) * 2;
+            pedY += verticalOffset;
+            ped.style.bottom = pedY + 'px';
+            break;
+          default:
+            break;
+        }
+        
+        ped.dataset.direction = direction.toString();
+        pedX += direction * currentSpeed;
+        ped.style.left = pedX + 'px';
+        
+        if (pedX < -60 || pedX > container.offsetWidth + 60) {
+          container.removeChild(ped);
+          pedestrians.splice(i, 1);
+        } else {
+          if (isColliding(ped, wrenchMan.element) && !onRoof) {
+            endGame();
+          }
+        }
+      }
+    }
+
+    function isColliding(el1, el2) {
+      const rect1 = el1.getBoundingClientRect();
+      const rect2 = el2.getBoundingClientRect();
+      return !(rect1.right < rect2.left || 
+               rect1.left > rect2.right || 
+               rect1.bottom < rect2.top || 
+               rect1.top > rect2.bottom);
+    }
+
+    function endGame() {
+      gameActive = false;
+      gameOverDisplay.style.display = 'block';
+      finalScoreDisplay.textContent = score;
+    }
+
+    function levelUp() {
+      level++;
+      const levelUpEffect = document.createElement('div');
+      levelUpEffect.className = 'hit-effect';
+      levelUpEffect.style.left = '400px';
+      levelUpEffect.style.bottom = '300px';
+      levelUpEffect.textContent = 'LEVEL UP!';
+      levelUpEffect.style.fontSize = '48px';
+      levelUpEffect.style.color = '#FFD700';
+      container.appendChild(levelUpEffect);
+      setTimeout(() => {
+        container.removeChild(levelUpEffect);
+      }, 1200);
+      
+      switch (level) {
+        case 2:
+          pedestrianSpeed += 0.5;  
+          spawnRate = Math.max(1800, spawnRate - 200);
+          break;
+        case 3:
+          pedestrianSpeed += 0.5;
+          break;
+        case 4:
+          pedestrianSpeed += 0.3;
+          spawnRate = Math.max(1600, spawnRate - 200);
+          break;
+        case 5:
+          pedestrianSpeed += 0.3;
+          break;
+        case 6:
+          pedestrianSpeed += 0.4;
+          spawnRate = Math.max(1400, spawnRate - 200);
+          break;
+        case 7:
+          pedestrianSpeed += 0.3;
+          break;
+        case 8:
+          pedestrianSpeed += 0.4;
+          spawnRate = Math.max(1200, spawnRate - 200);
+          break;
+        case 9:
+          pedestrianSpeed += 0.3;
+          break;
+        case 10:
+          pedestrianSpeed += 0.5;
+          spawnRate = Math.max(1000, spawnRate - 200);
+          break;
+        case 11:
+          pedestrianSpeed += 0.3;
+          break;
+        case 12:
+          pedestrianSpeed += 0.5;
+          spawnRate = Math.max(800, spawnRate - 200);
+          break;
+        default:
+          pedestrianSpeed += 0.2;
+          spawnRate = Math.max(600, spawnRate - 100);
+          break;
+      }
+      
+      levelDisplay.textContent = `Level: ${level}`;
+      levelDisplay.style.fontSize = '32px';
+      levelDisplay.style.color = '#FFD700';
+      setTimeout(() => {
+        levelDisplay.style.fontSize = '28px';
+        levelDisplay.style.color = 'white';
+      }, 1000);
+    }
+
+    function restartGame() {
+      score = 0;
+      level = 1;
+      pedestrianSpeed = 2;
+      spawnRate = 2000;
+      lastSpawnTime = 0;
+      gameActive = true;
+      isJumping = false;
+      jumpVelocity = 0;
+      onRoof = false;
+      currentPlatform = null;
+      pedestrians.forEach(ped => {
+        if (ped.parentNode === container) {
+          container.removeChild(ped);
+        }
+      });
+      pedestrians = [];
+      gameOverDisplay.style.display = 'none';
+      wrenchMan.x = 400;
+      wrenchMan.y = 200;
+      wrenchMan.direction = 'right';
+      wrenchMan.element.style.left = wrenchMan.x + 'px';
+      wrenchMan.element.style.bottom = wrenchMan.y + 'px';
+      wrenchMan.element.style.transform = 'scaleX(1)';
+      wrench.element.style.transform = 'none';
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Debug function to visualize roof platforms (optional)
+    function debugRoofPlatforms() {
+      // First remove any existing debug markers
+      const existingMarkers = document.querySelectorAll('.debug-roof-marker');
+      existingMarkers.forEach(marker => marker.parentNode.removeChild(marker));
+      
+      // Create visual markers for each roof platform
+      platforms.forEach(platform => {
+        const marker = document.createElement('div');
+        marker.className = 'debug-roof-marker';
+        marker.style.left = platform.x + 'px';
+        marker.style.width = platform.width + 'px';
+        marker.style.height = '5px';
+        marker.style.bottom = platform.y + 'px';
+        container.appendChild(marker);
+      });
+    }
+
+    // Start the game
+    init();
+  </script>
+</body>
+</html>
